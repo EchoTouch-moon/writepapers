@@ -93,15 +93,17 @@ Batch 5 chunks per API call to minimize rate limits.
 
 **User Prompt:**
 ```
-Chunk 1: {chunk_1_content[:300]}
-Chunk 2: {chunk_2_content[:300]}
+Chunk 1: {chunk_1_content}
+Chunk 2: {chunk_2_content}
 ...
-Chunk 5: {chunk_5_content[:300]}
+Chunk 5: {chunk_5_content}
 ```
+
+**Note:** No truncation - Qwen has large context window and ¥0 cost. Full chunk preserves semantic cues for accurate classification.
 
 **Cost Analysis:**
 - 827 chunks / 5 per batch = 165 API calls
-- ~330 tokens/chunk × 827 = ~274K tokens
+- ~500 tokens/chunk × 827 = ~414K tokens (full chunk)
 - Qwen Coding Plan: ¥0 (free)
 
 ---
@@ -112,19 +114,27 @@ Chunk 5: {chunk_5_content[:300]}
 
 ```python
 class ChapterType(Enum):
-    ABSTRACT = "abstract"       # 摘要/概述
-    INTRODUCTION = "introduction"   # 引言/背景/相关工作
-    METHODOLOGY = "methodology"     # 方法/系统设计/模型架构
-    EXPERIMENT = "experiment"       # 实验/评估/结果分析
-    CONCLUSION = "conclusion"       # 结论/总结/未来展望
-    REFERENCE = "reference"         # 参考文献
-    OTHER = "other"                 # 附录/致谢/其他
+    ABSTRACT = "ABSTRACT"       # 摘要/概述
+    INTRODUCTION = "INTRODUCTION"   # 引言/背景/相关工作
+    METHODOLOGY = "METHODOLOGY"     # 方法/系统设计/模型架构
+    EXPERIMENT = "EXPERIMENT"       # 实验/评估/结果分析
+    CONCLUSION = "CONCLUSION"       # 结论/总结/未来展望
+    REFERENCE = "REFERENCE"         # 参考文献
+    OTHER = "OTHER"                 # 附录/致谢/其他
 ```
 
 **Rationale:**
+- Values match LLM output format (uppercase), direct mapping without `.lower()` conversion
 - Compatible with existing SECTION_TYPE_MAPPING (config.py)
 - Clear boundaries, LLM不易混淆
 - Works for both Chinese and English papers
+
+**Mapping Logic:**
+```python
+# Direct mapping from JSON response
+response = ["ABSTRACT", "INTRODUCTION", "METHODOLOGY"]
+chapter_types = [ChapterType(label) for label in response]  # No case conversion needed
+```
 
 ---
 
@@ -178,7 +188,17 @@ Changes in `thesis_library/core/retriever.py`:
 1. Add `oversample_multiplier` parameter
 2. Modify `_semantic_search` to fetch top_k × multiplier
 3. Add `chapter_type` filtering loop
-4. Return filtered results[:top_k]
+4. **Log warning if filtered results < top_k**
+5. Return filtered results[:top_k]
+
+```python
+# Oversample exhausted warning
+if len(filtered_results) < top_k:
+    logger.warning(
+        f"Metadata filter exhausted retrieved candidates. "
+        f"Only {len(filtered_results)}/{top_k} results match chapter_type={chapter_type}"
+    )
+```
 
 **Why Not Approach 2 (Independent Filter Module):**
 - ChromaDB Phase 2 uses native pre-filtering
@@ -219,22 +239,47 @@ thesis_library/
 
 | Risk | Mitigation |
 |------|------------|
-| Qwen API rate limits | Batch 5 chunks, retry with exponential backoff |
+| Qwen API rate limits | Batch 5 chunks, `tenacity` retry with exponential backoff (max 3 retries) |
+| Qwen API network errors | `tenacity.retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=10))` |
 | JSON parse failure | Mark batch as OTHER, let smoothing fix |
-| Oversample exhausted | Increase multiplier to 20, warn user |
+| Oversample exhausted | Log warning: `"Metadata filter exhausted retrieved candidates. Only {n}/{top_k} results match chapter_type."` |
 | Chapter boundary drift | window_size=3, boundary protection |
+
+### API Retry Strategy (chapter_classifier.py)
+
+```python
+from tenacity import retry, stop_after_attempt, wait_exponential
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(min=1, max=10),
+    retry_if_exception_type=(RateLimitError, NetworkError)
+)
+def classify_batch(chunks: list[Chunk]) -> list[ChapterType]:
+    """Batch classify with automatic retry."""
+    response = qwen_api_call(prompt)
+    return parse_response(response)
+```
+
+**Rationale for `tenacity` over `asyncio`:**
+- Ingestion is offline, no real-time throughput requirement
+- 165 batches × ~2s each = ~5 minutes total (acceptable)
+- Retry handles rate limits, network errors uniformly
+- Simpler than async/await coordination
 
 ---
 
 ## Implementation Order
 
 1. Add ChapterType enum to config.py
-2. Create chapter_classifier.py (Qwen API batch call)
+2. Create chapter_classifier.py (Qwen API batch call with `tenacity` retry)
 3. Create smoother.py (sliding window)
-4. Modify retriever.py (oversampling + post-filtering)
-5. Update chunk_map.json with chapter_type field
+4. Modify retriever.py (oversampling + post-filtering + exhausted warning)
+5. **Clear thesis/library/ and re-ingest all PDFs** (no migration script)
 6. Re-run eval to validate metrics improvement
 7. Add --chapter-type CLI flag
+
+**Note on Step 5:** Instead of writing a migration script to update existing chunk_map.json, clear the library directory and re-ingest. This validates the full ingestion pipeline and avoids state consistency issues.
 
 ---
 
