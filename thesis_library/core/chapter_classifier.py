@@ -24,7 +24,6 @@ class ClassifierConfig:
     api_key: str
     model: str = "qwen-plus"
     batch_size: int = 5
-    max_retries: int = 3
 
 
 class ChapterClassifier:
@@ -62,7 +61,7 @@ class ChapterClassifier:
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(min=1, max=10),
-        retry=retry_if_exception_type((Exception,)),
+        retry=retry_if_exception_type((ConnectionError, TimeoutError, OSError)),
         before_sleep=before_sleep_log(logger, logging.WARNING),
         reraise=True
     )
