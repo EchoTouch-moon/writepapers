@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["thesis_library*"]
+
+[project]
+name = "writepapers"
+version = "0.1.0"
+description = "LLM-assisted thesis writing system with local literature library"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "dashscope>=1.25.16",
+    "faiss-cpu>=1.13.2",
+    "opendataloader-pdf[hybrid]>=2.2.1",
+    "sentence-transformers>=5.4.0",
+    "tenacity>=9.1.4",
+]
+
+[project.scripts]
+thesis-library = "thesis_library.cli:main"
