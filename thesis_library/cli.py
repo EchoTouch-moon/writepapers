@@ -270,7 +270,7 @@ def cmd_eval(args: argparse.Namespace) -> int:
     if args.save_baseline:
         library_config = {
             "similarity_threshold": library.config.similarity_threshold,
-            "chunk_size": library.config.chunk_size,
+            "max_chunk_size": library.config.max_chunk_size,
             "embedding_model": library.config.embedding_model,
         }
         save_baseline(result, args.baseline, library_config)
