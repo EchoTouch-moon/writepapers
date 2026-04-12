@@ -7,8 +7,12 @@ import sys
 from pathlib import Path
 
 from thesis_library import Library, LibraryConfig
+from thesis_library.config import ChapterType
 from thesis_library.evaluator import Evaluator, generate_report, load_baseline, save_baseline, save_last_run
 from thesis_library.evaluator.cli_add import run_eval_add
+
+# Valid chapter types for validation
+VALID_CHAPTER_TYPES = {ct.value for ct in ChapterType}
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +90,15 @@ def cmd_search(args: argparse.Namespace) -> int:
         return 1
 
     query = args.query
-    chapter_type = args.chapter_type.upper() if args.chapter_type else None
+    chapter_type = None
+    if args.chapter_type:
+        stripped = args.chapter_type.strip()
+        if stripped:
+            chapter_type = stripped.upper()
+            if chapter_type not in VALID_CHAPTER_TYPES:
+                print(f"Error: Invalid chapter type '{chapter_type}'")
+                print(f"Valid types: {', '.join(sorted(VALID_CHAPTER_TYPES))}")
+                return 1
     threshold = args.threshold
     top_k = args.top_k
 
@@ -336,7 +348,7 @@ def main() -> int:
     search_parser.add_argument("query", help="Search query")
     search_parser.add_argument(
         "--chapter-type",
-        help="Chapter type for structural constraint",
+        help=f"Chapter type for structural constraint ({', '.join(sorted(VALID_CHAPTER_TYPES))})",
     )
     search_parser.add_argument(
         "--threshold", "-t",
