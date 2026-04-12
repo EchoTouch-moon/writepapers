@@ -151,7 +151,7 @@ import logging
 import os
 from dataclasses import dataclass
 
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, before_sleep_log
 
 from thesis_library.config import ChapterType, LibraryConfig
 from thesis_library.core.chunker import Chunk
@@ -209,11 +209,14 @@ class ChapterClassifier:
         stop=stop_after_attempt(3),
         wait=wait_exponential(min=1, max=10),
         retry=retry_if_exception_type((Exception,)),
+        before_sleep=before_sleep_log(logger, logging.WARNING),  # NEW: Log before retry
         reraise=True
     )
     def _call_api(self, user_prompt: str) -> str:
         """Call Qwen API with retry logic."""
         client = self._get_client()
+        
+        logger.info(f"Calling Qwen API with {len(user_prompt)} chars prompt...")
         
         response = client.call(
             model=self.config.model,
@@ -316,9 +319,9 @@ def create_classifier(library_config: LibraryConfig) -> ChapterClassifier:
     ))
 ```
 
-- [ ] **Step 2: Add dashscope dependency**
+- [ ] **Step 2: Add dependencies (dashscope + tenacity)**
 
-Run: `uv add dashscope`
+Run: `uv add dashscope tenacity`
 
 - [ ] **Step 3: Verify import works**
 
@@ -792,7 +795,8 @@ def cmd_search(args: argparse.Namespace) -> int:
         return 1
 
     query = args.query
-    chapter_type = args.chapter_type  # NEW
+    # NEW: Defensive uppercase conversion for chapter_type
+    chapter_type = args.chapter_type.upper() if args.chapter_type else None
     threshold = args.threshold
     top_k = args.top_k
 
@@ -978,9 +982,11 @@ git commit -m "feat(library): integrate chapter classification into ingestion pi
 **Files:**
 - No file changes, runtime validation
 
-- [ ] **Step 1: Clear existing library**
+- [ ] **Step 1: Clear existing library (preserve metadata.json)**
 
-Run: `rm -rf thesis/library/*`
+Run: `rm -rf thesis/library/papers thesis/library/index`
+
+Note: Only delete `papers/` and `index/` subdirectories. `metadata.json` at `thesis/library/metadata.json` is preserved as global registry. If it doesn't exist, `Library` will auto-create it on first ingest.
 
 - [ ] **Step 2: Set QWEN_API_KEY environment variable**
 
