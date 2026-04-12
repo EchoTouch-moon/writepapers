@@ -72,7 +72,7 @@ class LibraryConfig:
     # Chapter classifier configuration
     qwen_api_key: str | None = None  # Set via environment variable
     classifier_batch_size: int = 5  # Chunks per API call
-    classifier_model: str = "qwen-plus"  # Qwen model name
+    classifier_model: str = "qwen3.5-plus"  # Qwen Coding Plan model
 
     def __post_init__(self) -> None:
         # Compute derived paths based on library_dir

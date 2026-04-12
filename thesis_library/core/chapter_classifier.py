@@ -3,6 +3,8 @@
 import json
 import logging
 import os
+import urllib.request
+import urllib.error
 from dataclasses import dataclass
 
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, before_sleep_log
@@ -18,16 +20,21 @@ class ClassificationError(Exception):
     pass
 
 
+# Anthropic-compatible endpoint for Qwen Coding Plan
+QWEN_CODING_ENDPOINT = "https://coding.dashscope.aliyuncs.com/apps/anthropic/v1/messages"
+
+
 @dataclass
 class ClassifierConfig:
     """Configuration for chapter classifier."""
     api_key: str
-    model: str = "qwen-plus"
+    model: str = "qwen3.5-plus"  # Qwen Coding Plan model
     batch_size: int = 5
+    endpoint: str = QWEN_CODING_ENDPOINT
 
 
 class ChapterClassifier:
-    """Batch classify chunks using Qwen API.
+    """Batch classify chunks using Qwen API (Anthropic-compatible endpoint).
 
     Workflow:
     1. Group chunks into batches (batch_size=5)
@@ -45,45 +52,64 @@ class ChapterClassifier:
 
     def __init__(self, config: ClassifierConfig) -> None:
         self.config = config
-        self._client = None
-
-    def _get_client(self):
-        """Lazy load Qwen client."""
-        if self._client is None:
-            try:
-                import dashscope
-                dashscope.api_key = self.config.api_key
-                self._client = dashscope.Generation
-            except ImportError:
-                raise ClassificationError("dashscope not installed. Run: uv add dashscope")
-        return self._client
 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(min=1, max=10),
-        retry=retry_if_exception_type((ConnectionError, TimeoutError, OSError)),
+        retry=retry_if_exception_type((ConnectionError, TimeoutError, OSError, urllib.error.URLError)),
         before_sleep=before_sleep_log(logger, logging.WARNING),
         reraise=True
     )
     def _call_api(self, user_prompt: str) -> str:
-        """Call Qwen API with retry logic."""
-        client = self._get_client()
-
+        """Call Qwen API (Anthropic-compatible) with retry logic."""
         logger.info(f"Calling Qwen API with {len(user_prompt)} chars prompt...")
 
-        response = client.call(
-            model=self.config.model,
-            messages=[
-                {"role": "system", "content": self.SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt}
-            ],
-            result_format="message"
+        # Build request body for Anthropic-compatible endpoint
+        request_body = {
+            "model": self.config.model,
+            "max_tokens": 2048,
+            "messages": [
+                {"role": "user", "content": f"{self.SYSTEM_PROMPT}\n\n{user_prompt}"}
+            ]
+        }
+
+        request_data = json.dumps(request_body).encode("utf-8")
+
+        # Build request
+        req = urllib.request.Request(
+            self.config.endpoint,
+            data=request_data,
+            headers={
+                "x-api-key": self.config.api_key,
+                "anthropic-version": "2023-06-01",
+                "Content-Type": "application/json"
+            },
+            method="POST"
         )
 
-        if response.status_code != 200:
-            raise ClassificationError(f"API error: {response.code} - {response.message}")
+        try:
+            with urllib.request.urlopen(req, timeout=60) as response:
+                response_data = json.loads(response.read().decode("utf-8"))
 
-        return response.output.choices[0].message.content
+                # Extract text content from response
+                # Response format: {"content": [{"type": "text", "text": "..."}, ...]}
+                text_content = ""
+                for item in response_data.get("content", []):
+                    if item.get("type") == "text":
+                        text_content += item.get("text", "")
+
+                if not text_content:
+                    raise ClassificationError("Empty response from API")
+
+                return text_content.strip()
+
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode("utf-8")
+            logger.error(f"API HTTP error {e.code}: {error_body}")
+            raise ClassificationError(f"API error {e.code}: {error_body}")
+        except urllib.error.URLError as e:
+            logger.error(f"API URL error: {e.reason}")
+            raise
 
     def classify_batch(self, chunks: list[Chunk]) -> list[ChapterType]:
         """Classify a batch of chunks.
