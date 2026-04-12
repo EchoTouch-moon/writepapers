@@ -86,7 +86,7 @@ def cmd_search(args: argparse.Namespace) -> int:
         return 1
 
     query = args.query
-    chapter_type = args.chapter
+    chapter_type = args.chapter_type.upper() if args.chapter_type else None
     threshold = args.threshold
     top_k = args.top_k
 
@@ -335,7 +335,7 @@ def main() -> int:
     search_parser = subparsers.add_parser("search", help="Search library")
     search_parser.add_argument("query", help="Search query")
     search_parser.add_argument(
-        "--chapter", "-c",
+        "--chapter-type",
         help="Chapter type for structural constraint",
     )
     search_parser.add_argument(
