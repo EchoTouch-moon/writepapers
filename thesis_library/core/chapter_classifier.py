@@ -1,4 +1,4 @@
-"""Chapter classification using Doubao API (OpenAI-compatible endpoint)."""
+"""Chapter classification using Qwen API (Alibaba Cloud DashScope OpenAI-compatible endpoint)."""
 
 import json
 import logging
@@ -20,25 +20,34 @@ class ClassificationError(Exception):
     pass
 
 
-# OpenAI-compatible endpoint for Doubao (Volcengine Ark)
-DOUBAO_ENDPOINT = "https://ark.cn-beijing.volces.com/api/v3"
+# OpenAI-compatible endpoint for Alibaba Cloud DashScope (Bailian)
+DASHSCOPE_ENDPOINT = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+
+# Available models with free quotas (prioritized by speed/cost)
+AVAILABLE_MODELS = [
+    "qwen3.5-flash",       # Fast, 1M tokens until 2026/05/25
+    "qwen3.5-plus",        # Balanced, ~994K tokens until 2026/05/18
+    "qwen3.5-27b",         # Larger, 1M tokens until 2026/05/25
+    "qwen3.5-122b-a10b",   # Largest, 1M tokens until 2026/05/25
+    "qwen3-max-2026-01-23", # Max, 1M tokens until 2026/04/27
+]
 
 
 @dataclass
 class ClassifierConfig:
     """Configuration for chapter classifier."""
     api_key: str
-    model: str = "doubao-seed-2-0-mini-260215"  # Doubao model
+    model: str = "qwen3.5-flash"  # Default: fast model with 1M quota
     batch_size: int = 5
-    endpoint: str = DOUBAO_ENDPOINT
+    endpoint: str = DASHSCOPE_ENDPOINT
 
 
 class ChapterClassifier:
-    """Batch classify chunks using Doubao API (OpenAI-compatible endpoint).
+    """Batch classify chunks using Qwen API (OpenAI-compatible endpoint).
 
     Workflow:
     1. Group chunks into batches (batch_size=5)
-    2. Call Doubao API with system prompt
+    2. Call Qwen API with system prompt
     3. Parse JSON array response
     4. Handle retry on rate limits/network errors
     """
@@ -186,10 +195,11 @@ class ChapterClassifier:
 
 def create_classifier(library_config: LibraryConfig) -> ChapterClassifier:
     """Factory function to create classifier from library config."""
-    api_key = library_config.doubao_api_key or os.environ.get("ARK_API_KEY")
+    # Priority: DashScope API key > Doubao API key > Environment variable
+    api_key = library_config.dashscope_api_key or os.environ.get("DASHSCOPE_API_KEY")
     if not api_key:
         raise ClassificationError(
-            "ARK_API_KEY not set. Set via environment variable or LibraryConfig."
+            "DASHSCOPE_API_KEY not set. Set via environment variable or LibraryConfig."
         )
 
     return ChapterClassifier(ClassifierConfig(

@@ -40,9 +40,9 @@ class LibraryConfig:
         min_term_freq: Minimum frequency to consider a term
         max_term_length: Maximum characters for a term
         oversample_multiplier: Oversample factor for post-filtering
-        doubao_api_key: Doubao API key for chapter classification
+        dashscope_api_key: DashScope API key for chapter classification
         classifier_batch_size: Number of chunks per API call
-        classifier_model: Doubao model name for classification
+        classifier_model: Qwen model name for classification
     """
 
     library_dir: str = "thesis/library"
@@ -69,10 +69,10 @@ class LibraryConfig:
     # Metadata filtering configuration
     oversample_multiplier: int = 10  # Oversample factor for post-filtering
 
-    # Chapter classifier configuration (Doubao/Volcengine Ark)
-    doubao_api_key: str | None = None  # Set via environment variable ARK_API_KEY
+    # Chapter classifier configuration (Alibaba Cloud DashScope/Qwen)
+    dashscope_api_key: str | None = None  # Set via environment variable DASHSCOPE_API_KEY
     classifier_batch_size: int = 5  # Chunks per API call
-    classifier_model: str = "doubao-seed-2-0-mini-260215"  # Doubao model
+    classifier_model: str = "qwen3.5-flash"  # Qwen model (fast, 1M free quota)
 
     def __post_init__(self) -> None:
         # Compute derived paths based on library_dir
