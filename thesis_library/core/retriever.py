@@ -240,7 +240,9 @@ class Retriever:
             # Post-filter by chapter_type
             if chapter_type is not None:
                 chunk = self.indexer.chunk_map.get(chunk_id)
-                if chunk and chunk.chapter_type != chapter_type:
+                # Handle both enum and string comparison
+                chapter_type_str = chapter_type.value if hasattr(chapter_type, 'value') else chapter_type
+                if chunk and chunk.chapter_type != chapter_type_str:
                     continue
 
             # Check threshold
