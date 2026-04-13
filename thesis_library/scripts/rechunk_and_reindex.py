@@ -78,14 +78,13 @@ def rebuild_index():
     )
 
     indexer.add_chunks(all_chunks)
-    indexer.save(config.index_dir)
+    indexer.save_index(config.index_dir)
 
     # Build term index
     term_index = indexer.build_term_index(all_chunks)
 
     # Save term index
-    term_path = Path(config.index_dir) / "terms.json"
-    term_path.write_text(json.dumps(term_index, ensure_ascii=False, indent=2))
+    indexer.save_term_index(term_index, config.index_dir)
 
     logger.info(f"Index built with {indexer.index.ntotal} vectors, {len(term_index)} terms")
 

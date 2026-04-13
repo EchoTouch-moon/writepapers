@@ -49,6 +49,7 @@ class Chunker:
         self.min_chunk_size = min_chunk_size
         self._current_section = ""
         self._section_counter = 0
+        self._merged_para_counter = 0
 
     def chunk_paper(
         self, json_data: list[dict[str, Any]], cite_key: str
@@ -76,6 +77,7 @@ class Chunker:
         # Reset counters for actual chunking
         self._current_section = ""
         self._section_counter = 0
+        self._merged_para_counter = 0  # Reset merged paragraph counter
         para_counter = 0
         table_counter = 0
         list_counter = 0
@@ -104,6 +106,7 @@ class Chunker:
                     self._section_counter += 1
                     self._current_section = content.strip()
                     para_counter = 0
+                    self._merged_para_counter = 0  # Reset merged counter for new section
 
                     # Create section chunk
                     chunk_id = f"{cite_key}_section{self._section_counter}"
@@ -147,7 +150,7 @@ class Chunker:
                         for i, sub in enumerate(sub_chunks):
                             parent = section_chunks.get(self._current_section)
                             chunks.append(Chunk(
-                                id=f"{cite_key}_para{para_counter}_sub{i}",
+                                id=f"{cite_key}_s{self._section_counter}_para{para_counter}_sub{i}",
                                 cite_key=cite_key,
                                 content=sub,
                                 chunk_type="paragraph",
@@ -159,7 +162,7 @@ class Chunker:
                     else:
                         parent = section_chunks.get(self._current_section)
                         chunks.append(Chunk(
-                            id=f"{cite_key}_para{para_counter}",
+                            id=f"{cite_key}_s{self._section_counter}_para{para_counter}",
                             cite_key=cite_key,
                             content=content.strip(),
                             chunk_type="paragraph",
@@ -185,7 +188,7 @@ class Chunker:
 
                 parent = section_chunks.get(self._current_section)
                 chunks.append(Chunk(
-                    id=f"{cite_key}_table{table_counter}",
+                    id=f"{cite_key}_s{self._section_counter}_table{table_counter}",
                     cite_key=cite_key,
                     content=table_content,
                     chunk_type="table",
@@ -210,7 +213,7 @@ class Chunker:
 
                 parent = section_chunks.get(self._current_section)
                 chunks.append(Chunk(
-                    id=f"{cite_key}_list{list_counter}",
+                    id=f"{cite_key}_s{self._section_counter}_list{list_counter}",
                     cite_key=cite_key,
                     content=list_content,
                     chunk_type="list",
@@ -252,7 +255,7 @@ class Chunker:
             for i, piece in enumerate(pieces):
                 parent = section_chunks.get(self._current_section)
                 chunks.append(Chunk(
-                    id=f"{cite_key}_merged_para{i}",
+                    id=f"{cite_key}_s{self._section_counter}_merged{self._merged_para_counter + i}",
                     cite_key=cite_key,
                     content=piece,
                     chunk_type="paragraph",
@@ -261,10 +264,11 @@ class Chunker:
                     bounding_box=paragraph_buffer[0].get("bounding box", [0.0, 0.0, 0.0, 0.0]),
                     parent_id=parent.id if parent else None,
                 ))
+            self._merged_para_counter += len(pieces)
         else:
             parent = section_chunks.get(self._current_section)
             chunks.append(Chunk(
-                id=f"{cite_key}_merged_para0",
+                id=f"{cite_key}_s{self._section_counter}_merged{self._merged_para_counter}",
                 cite_key=cite_key,
                 content=buffer_content.strip(),
                 chunk_type="paragraph",
@@ -273,6 +277,7 @@ class Chunker:
                 bounding_box=paragraph_buffer[0].get("bounding box", [0.0, 0.0, 0.0, 0.0]) if paragraph_buffer else [0.0, 0.0, 0.0, 0.0],
                 parent_id=parent.id if parent else None,
             ))
+            self._merged_para_counter += 1
 
         return chunks
 
