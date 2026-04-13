@@ -1,4 +1,4 @@
-"""Chapter classification using Qwen API with batch processing."""
+"""Chapter classification using Doubao API (OpenAI-compatible endpoint)."""
 
 import json
 import logging
@@ -20,25 +20,25 @@ class ClassificationError(Exception):
     pass
 
 
-# Anthropic-compatible endpoint for Qwen Coding Plan
-QWEN_CODING_ENDPOINT = "https://coding.dashscope.aliyuncs.com/apps/anthropic/v1/messages"
+# OpenAI-compatible endpoint for Doubao (Volcengine Ark)
+DOUBAO_ENDPOINT = "https://ark.cn-beijing.volces.com/api/v3"
 
 
 @dataclass
 class ClassifierConfig:
     """Configuration for chapter classifier."""
     api_key: str
-    model: str = "qwen3.5-plus"  # Qwen Coding Plan model
+    model: str = "doubao-seed-2-0-mini-260215"  # Doubao model
     batch_size: int = 5
-    endpoint: str = QWEN_CODING_ENDPOINT
+    endpoint: str = DOUBAO_ENDPOINT
 
 
 class ChapterClassifier:
-    """Batch classify chunks using Qwen API (Anthropic-compatible endpoint).
+    """Batch classify chunks using Doubao API (OpenAI-compatible endpoint).
 
     Workflow:
     1. Group chunks into batches (batch_size=5)
-    2. Call Qwen API with system prompt
+    2. Call Doubao API with system prompt
     3. Parse JSON array response
     4. Handle retry on rate limits/network errors
     """
@@ -61,27 +61,28 @@ class ChapterClassifier:
         reraise=True
     )
     def _call_api(self, user_prompt: str) -> str:
-        """Call Qwen API (Anthropic-compatible) with retry logic."""
-        logger.info(f"Calling Qwen API with {len(user_prompt)} chars prompt...")
+        """Call Doubao API (OpenAI-compatible) with retry logic."""
+        logger.info(f"Calling Doubao API with {len(user_prompt)} chars prompt...")
 
-        # Build request body for Anthropic-compatible endpoint
+        # Build request body for OpenAI-compatible endpoint
+        # Endpoint: https://ark.cn-beijing.volces.com/api/v3
+        # Full path: endpoint + /chat/completions
         request_body = {
             "model": self.config.model,
-            "max_tokens": 2048,
             "messages": [
-                {"role": "user", "content": f"{self.SYSTEM_PROMPT}\n\n{user_prompt}"}
+                {"role": "system", "content": self.SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt}
             ]
         }
 
         request_data = json.dumps(request_body).encode("utf-8")
 
-        # Build request
+        # Build request - OpenAI format uses Authorization: Bearer
         req = urllib.request.Request(
-            self.config.endpoint,
+            f"{self.config.endpoint}/chat/completions",
             data=request_data,
             headers={
-                "x-api-key": self.config.api_key,
-                "anthropic-version": "2023-06-01",
+                "Authorization": f"Bearer {self.config.api_key}",
                 "Content-Type": "application/json"
             },
             method="POST"
@@ -91,13 +92,13 @@ class ChapterClassifier:
             with urllib.request.urlopen(req, timeout=60) as response:
                 response_data = json.loads(response.read().decode("utf-8"))
 
-                # Extract text content from response
-                # Response format: {"content": [{"type": "text", "text": "..."}, ...]}
-                text_content = ""
-                for item in response_data.get("content", []):
-                    if item.get("type") == "text":
-                        text_content += item.get("text", "")
+                # Extract text content from OpenAI response format
+                # Response format: {"choices": [{"message": {"content": "..."}}]}
+                choices = response_data.get("choices", [])
+                if not choices:
+                    raise ClassificationError("No choices in API response")
 
+                text_content = choices[0].get("message", {}).get("content", "")
                 if not text_content:
                     raise ClassificationError("Empty response from API")
 
@@ -185,10 +186,10 @@ class ChapterClassifier:
 
 def create_classifier(library_config: LibraryConfig) -> ChapterClassifier:
     """Factory function to create classifier from library config."""
-    api_key = library_config.qwen_api_key or os.environ.get("QWEN_API_KEY")
+    api_key = library_config.doubao_api_key or os.environ.get("ARK_API_KEY")
     if not api_key:
         raise ClassificationError(
-            "QWEN_API_KEY not set. Set via environment variable or LibraryConfig."
+            "ARK_API_KEY not set. Set via environment variable or LibraryConfig."
         )
 
     return ChapterClassifier(ClassifierConfig(
