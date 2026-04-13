@@ -55,7 +55,7 @@ class LibraryConfig:
     min_chunk_size: int = 100
 
     # Index configuration
-    embedding_model: str = "paraphrase-multilingual-MiniLM-L12-v2"
+    embedding_model: str = "paraphrase-multilingual-MiniLM-L12-v2"  # Baseline: 384d, verified working on Mac
     index_type: str = "FlatIP"
 
     # Retrieval configuration
