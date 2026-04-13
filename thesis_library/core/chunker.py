@@ -80,6 +80,10 @@ class Chunker:
         table_counter = 0
         list_counter = 0
 
+        # Buffer for merging short paragraphs
+        paragraph_buffer: list[dict] = []
+        buffer_content = ""
+
         for element in json_data:
             elem_type = element.get("type", "")
             content = element.get("content", "")
@@ -87,6 +91,14 @@ class Chunker:
             bbox = element.get("bounding box", [0.0, 0.0, 0.0, 0.0])
 
             if elem_type == "heading":
+                # Flush paragraph buffer before new section
+                if buffer_content:
+                    chunks.extend(self._flush_paragraph_buffer(
+                        buffer_content, paragraph_buffer, cite_key, section_chunks
+                    ))
+                    buffer_content = ""
+                    paragraph_buffer = []
+
                 level = element.get("heading level", 1)
                 if level <= 2:
                     self._section_counter += 1
@@ -108,39 +120,64 @@ class Chunker:
                     section_chunks[self._current_section] = section_chunk
 
             elif elem_type == "paragraph":
-                para_counter += 1
+                # Filter out extremely short fragments (< 10 chars)
+                # These are likely parsing artifacts from special PDF fonts
+                if len(content.strip()) < 10:
+                    continue
 
-                # Split long paragraphs
-                if len(content) > self.max_chunk_size:
-                    sub_chunks = self._split_long_content(
-                        content, cite_key, "paragraph", page, bbox
-                    )
-                    for i, sub in enumerate(sub_chunks):
+                # Buffer short paragraphs for merging
+                if len(content) < self.min_chunk_size:
+                    buffer_content += content.strip() + "\n"
+                    paragraph_buffer.append(element)
+                else:
+                    # Flush buffer first
+                    if buffer_content:
+                        chunks.extend(self._flush_paragraph_buffer(
+                            buffer_content, paragraph_buffer, cite_key, section_chunks
+                        ))
+                        buffer_content = ""
+                        paragraph_buffer = []
+
+                    para_counter += 1
+                    # Split long paragraphs
+                    if len(content) > self.max_chunk_size:
+                        sub_chunks = self._split_long_content(
+                            content, cite_key, "paragraph", page, bbox
+                        )
+                        for i, sub in enumerate(sub_chunks):
+                            parent = section_chunks.get(self._current_section)
+                            chunks.append(Chunk(
+                                id=f"{cite_key}_para{para_counter}_sub{i}",
+                                cite_key=cite_key,
+                                content=sub,
+                                chunk_type="paragraph",
+                                section_title=self._current_section,
+                                page_number=page,
+                                bounding_box=bbox,
+                                parent_id=parent.id if parent else None,
+                            ))
+                    else:
                         parent = section_chunks.get(self._current_section)
                         chunks.append(Chunk(
-                            id=f"{cite_key}_para{para_counter}_sub{i}",
+                            id=f"{cite_key}_para{para_counter}",
                             cite_key=cite_key,
-                            content=sub,
+                            content=content.strip(),
                             chunk_type="paragraph",
                             section_title=self._current_section,
                             page_number=page,
                             bounding_box=bbox,
                             parent_id=parent.id if parent else None,
                         ))
-                else:
-                    parent = section_chunks.get(self._current_section)
-                    chunks.append(Chunk(
-                        id=f"{cite_key}_para{para_counter}",
-                        cite_key=cite_key,
-                        content=content.strip(),
-                        chunk_type="paragraph",
-                        section_title=self._current_section,
-                        page_number=page,
-                        bounding_box=bbox,
-                        parent_id=parent.id if parent else None,
-                    ))
 
             elif elem_type == "table":
+                # Flush paragraph buffer before table
+                if buffer_content:
+                    chunks.extend(self._flush_paragraph_buffer(
+                        buffer_content, paragraph_buffer, cite_key, section_chunks
+                    ))
+                    buffer_content = ""
+                    paragraph_buffer = []
+
                 table_counter += 1
                 # Keep tables as single chunks, preserve row structure
                 rows = element.get("rows", [])
@@ -159,6 +196,14 @@ class Chunker:
                 ))
 
             elif elem_type == "list":
+                # Flush paragraph buffer before list
+                if buffer_content:
+                    chunks.extend(self._flush_paragraph_buffer(
+                        buffer_content, paragraph_buffer, cite_key, section_chunks
+                    ))
+                    buffer_content = ""
+                    paragraph_buffer = []
+
                 list_counter += 1
                 items = element.get("list items", [])
                 list_content = "\n".join(f"- {item}" for item in items)
@@ -175,7 +220,60 @@ class Chunker:
                     parent_id=parent.id if parent else None,
                 ))
 
+        # Flush remaining buffer at end
+        if buffer_content:
+            chunks.extend(self._flush_paragraph_buffer(
+                buffer_content, paragraph_buffer, cite_key, section_chunks
+            ))
+
         logger.info(f"Created {len(chunks)} chunks for {cite_key}")
+        return chunks
+
+    def _flush_paragraph_buffer(
+        self,
+        buffer_content: str,
+        paragraph_buffer: list[dict],
+        cite_key: str,
+        section_chunks: dict[str, "Chunk"],
+    ) -> list[Chunk]:
+        """Flush accumulated short paragraphs as merged chunks."""
+        chunks: list[Chunk] = []
+
+        if not buffer_content.strip():
+            return chunks
+
+        # Split buffer into max_chunk_size pieces
+        if len(buffer_content) > self.max_chunk_size:
+            pieces = self._split_long_content(
+                buffer_content, cite_key, "paragraph",
+                paragraph_buffer[0].get("page number", 1),
+                paragraph_buffer[0].get("bounding box", [0.0, 0.0, 0.0, 0.0])
+            )
+            for i, piece in enumerate(pieces):
+                parent = section_chunks.get(self._current_section)
+                chunks.append(Chunk(
+                    id=f"{cite_key}_merged_para{i}",
+                    cite_key=cite_key,
+                    content=piece,
+                    chunk_type="paragraph",
+                    section_title=self._current_section,
+                    page_number=paragraph_buffer[0].get("page number", 1),
+                    bounding_box=paragraph_buffer[0].get("bounding box", [0.0, 0.0, 0.0, 0.0]),
+                    parent_id=parent.id if parent else None,
+                ))
+        else:
+            parent = section_chunks.get(self._current_section)
+            chunks.append(Chunk(
+                id=f"{cite_key}_merged_para0",
+                cite_key=cite_key,
+                content=buffer_content.strip(),
+                chunk_type="paragraph",
+                section_title=self._current_section,
+                page_number=paragraph_buffer[0].get("page number", 1) if paragraph_buffer else 1,
+                bounding_box=paragraph_buffer[0].get("bounding box", [0.0, 0.0, 0.0, 0.0]) if paragraph_buffer else [0.0, 0.0, 0.0, 0.0],
+                parent_id=parent.id if parent else None,
+            ))
+
         return chunks
 
     def _split_long_content(

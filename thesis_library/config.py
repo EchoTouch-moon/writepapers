@@ -72,7 +72,7 @@ class LibraryConfig:
     # Chapter classifier configuration (Alibaba Cloud DashScope/Qwen)
     dashscope_api_key: str | None = None  # Set via environment variable DASHSCOPE_API_KEY
     classifier_batch_size: int = 5  # Chunks per API call
-    classifier_model: str = "qwen3.5-flash"  # Qwen model (fast, 1M free quota)
+    classifier_model: str = "qwen3.5-plus"  # Qwen model (balanced, ~994K free quota remaining)
 
     def __post_init__(self) -> None:
         # Compute derived paths based on library_dir
