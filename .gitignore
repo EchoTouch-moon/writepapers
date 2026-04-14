@@ -32,6 +32,7 @@ thesis/library/papers/
 
 # Claude Code session data
 .claude/
+docs/superpowers/
 
 # Thesis state files (contain personal session logs)
 thesis/state.json
