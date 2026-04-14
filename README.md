@@ -43,10 +43,13 @@ PDF 文献 → 解析分块 → 向量索引 + 术语索引
 git clone https://github.com/EchoTouch-moon/writepapers.git
 cd writepapers
 
-# 安装依赖（推荐使用 uv）
+# 方式一：uv（推荐）
 uv sync
 
-# 或使用 pip
+# 方式二：pip
+pip install -r requirements.txt
+
+# 方式三：pip 开发模式（可编辑安装）
 pip install -e .
 ```
 
