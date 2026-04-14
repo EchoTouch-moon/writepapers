@@ -1,10 +1,8 @@
 """Combined retrieval module with term anchoring, structural constraints, and semantic matching."""
 
-import json
 import logging
 import re
 from dataclasses import dataclass
-from pathlib import Path
 
 import numpy as np
 

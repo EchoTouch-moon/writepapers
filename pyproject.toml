@@ -12,8 +12,8 @@ description = "LLM-assisted thesis writing system with local literature library"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "dashscope>=1.25.16",
     "faiss-cpu>=1.13.2",
+    "numpy>=1.26.0",
     "opendataloader-pdf[hybrid]>=2.2.1",
     "sentence-transformers>=5.4.0",
     "tenacity>=9.1.4",

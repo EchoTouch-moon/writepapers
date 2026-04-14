@@ -16,6 +16,11 @@ build/
 .DS_Store
 Thumbs.db
 
+# Environment variables (contains API keys)
+.env
+.env.*
+!.env.example
+
 # Papers (large files)
 papers/
 opendataloader-pdf-cli-*/
@@ -25,5 +30,9 @@ test_paper.pdf
 thesis/library/index/
 thesis/library/papers/
 
-# Claude project memory (optional)
+# Claude Code session data
 .claude/
+
+# Thesis state files (contain personal session logs)
+thesis/state.json
+thesis/global_state.json

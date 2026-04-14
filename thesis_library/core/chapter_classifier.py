@@ -70,11 +70,10 @@ class ChapterClassifier:
         reraise=True
     )
     def _call_api(self, user_prompt: str) -> str:
-        """Call Doubao API (OpenAI-compatible) with retry logic."""
-        logger.info(f"Calling Doubao API with {len(user_prompt)} chars prompt...")
+        """Call Qwen API (OpenAI-compatible) with retry logic."""
+        logger.info(f"Calling Qwen API with {len(user_prompt)} chars prompt...")
 
         # Build request body for OpenAI-compatible endpoint
-        # Endpoint: https://ark.cn-beijing.volces.com/api/v3
         # Full path: endpoint + /chat/completions
         request_body = {
             "model": self.config.model,
