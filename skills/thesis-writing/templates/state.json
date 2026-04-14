@@ -1,0 +1,21 @@
+{
+  "project_info": {
+    "proposal_path": "",
+    "papers_path": "",
+    "code_path": "",
+    "output_dir": "thesis/"
+  },
+  "progress": {
+    "phase": "init",
+    "current_chapter": 0,
+    "total_chapters": 0,
+    "completed_chapters": [],
+    "started_at": "",
+    "last_updated": ""
+  },
+  "statistics": {
+    "total_citations_used": 0,
+    "papers_in_library": 0,
+    "figures_pending": 0
+  }
+}

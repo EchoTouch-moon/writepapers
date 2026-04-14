@@ -1,0 +1,77 @@
+# Chapter-to-Figure Type Mapping
+
+chapters:
+  01-绪论:
+    figures: []
+    tables: []
+    optional:
+      - type: 研究背景示意图
+        priority: optional
+
+  02-相关技术:
+    figures:
+      - type: 技术框架对比表
+        priority: recommended
+      - type: 技术原理图
+        priority: optional
+      - type: 技术栈层次图
+        priority: recommended
+    tables: []
+
+  03-需求分析:
+    figures:
+      - type: Use Case 图
+        priority: recommended
+      - type: 业务流程图
+        priority: optional
+    tables:
+      - type: 需求分类表
+        priority: required
+
+  04-系统设计:
+    figures:
+      - type: 系统架构图
+        priority: required
+      - type: 模块结构图
+        priority: recommended
+      - type: ER图
+        priority: required
+      - type: 时序图
+        priority: optional
+      - type: 关键算法流程图
+        priority: recommended
+    tables:
+      - type: 接口设计表
+        priority: optional
+
+  05-系统实现:
+    figures:
+      - type: 核心模块流程图
+        priority: recommended
+      - type: 数据处理流程图
+        priority: optional
+      - type: 界面截图
+        priority: optional
+        note: "工科论文不宜过多截图"
+    tables: []
+
+  06-系统测试:
+    figures:
+      - type: 性能对比图
+        priority: recommended
+    tables:
+      - type: 测试用例表
+        priority: required
+      - type: 测试结果数据表
+        priority: required
+
+  07-结论与展望:
+    figures: []
+    tables:
+      - type: 与他人工作对比表
+        priority: optional
+
+priorities:
+  required: "必须包含"
+  recommended: "建议包含"
+  optional: "可选包含"

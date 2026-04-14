@@ -191,6 +191,7 @@ writepapers/
 │       ├── metrics.py        # 评估指标
 │       └── report.py         # 报告生成
 ├── thesis/                   # 论文数据（gitignore 大文件）
+├── skills/                   # Claude Code 写作辅助 skills（可选）
 ├── pyproject.toml
 └── README.md
 ```
@@ -205,6 +206,30 @@ writepapers/
 | `tenacity` | API 调用重试 |
 
 嵌入模型默认使用 `paraphrase-multilingual-MiniLM-L12-v2`（384 维，支持中英文，Mac 兼容）。
+
+## 写作辅助 Skills（可选）
+
+项目附带三个 Claude Code 写作辅助 skill，配合 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI 使用：
+
+| Skill | 功能 |
+|-------|------|
+| `thesis-writing` | 本科毕业论文交互式写作：章节生成、引用追踪、上下文管理、去 AI 痕迹 |
+| `ml-paper-writing` | ML/AI 顶会论文写作：NeurIPS/ICML/ICLR 模板、引用验证、写作评估 |
+| `writing-anti-ai` | 去除 AI 写作痕迹：中英文支持，基于 Wikipedia AI 写作特征指南 |
+
+### 安装方式
+
+```bash
+# 将 skills 复制到 Claude Code 的 skills 目录
+cp -r skills/thesis-writing ~/.claude/skills/
+cp -r skills/ml-paper-writing ~/.claude/skills/
+cp -r skills/writing-anti-ai ~/.claude/skills/
+```
+
+安装后，在 Claude Code 中即可通过自然语言触发，例如：
+- "帮我写第三章系统设计"
+- "检查这段话有没有 AI 写作痕迹"
+- "用 NeurIPS 模板生成论文"
 
 ## 许可证
 
