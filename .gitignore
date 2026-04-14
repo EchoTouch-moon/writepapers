@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Papers (large files)
+papers/
+opendataloader-pdf-cli-*/
+test_paper.pdf
+
+# Thesis library index and papers (binary/large)
+thesis/library/index/
+thesis/library/papers/
+
+# Claude project memory (optional)
+.claude/
