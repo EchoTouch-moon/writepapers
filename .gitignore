@@ -26,9 +26,10 @@ papers/
 opendataloader-pdf-cli-*/
 test_paper.pdf
 
-# Thesis library index and papers (binary/large)
+# Thesis library index, papers, and metadata (private)
 thesis/library/index/
 thesis/library/papers/
+thesis/library/metadata.json
 
 # Claude Code session data
 .claude/
