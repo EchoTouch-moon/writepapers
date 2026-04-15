@@ -34,7 +34,10 @@ PDF 文献 → 解析分块 → 向量索引 + 术语索引
 ### 环境要求
 
 - Python >= 3.11
+- **Java 11+**（[opendataloader-pdf](https://github.com/opendataloader-project/opendataloader-pdf) 底层依赖，[Adoptium](https://adoptium.net/) 下载安装）
 - [uv](https://docs.astral.sh/uv/)（推荐）或 pip
+
+> 安装前请先确认 `java -version` 可正常输出，否则 PDF 解析会报错。
 
 ### 安装
 
@@ -214,7 +217,7 @@ writepapers/
 |------|------|
 | `faiss-cpu` | 向量相似度检索 |
 | `sentence-transformers` | 文本嵌入模型（默认 MiniLM） |
-| `opendataloader-pdf` | PDF 解析 |
+| `opendataloader-pdf` | PDF 解析（[GitHub](https://github.com/opendataloader-project/opendataloader-pdf)） |
 | `tenacity` | API 调用重试 |
 
 嵌入模型默认使用 `paraphrase-multilingual-MiniLM-L12-v2`（384 维，支持中英文，Mac 兼容）。

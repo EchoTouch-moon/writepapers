@@ -34,6 +34,11 @@ thesis/library/papers/
 .claude/
 docs/superpowers/
 
+# Thesis content (private)
+thesis/chapters/
+thesis/chapter_summaries/
+thesis/evaluator/
+
 # Thesis state files (contain personal session logs)
 thesis/state.json
 thesis/global_state.json
